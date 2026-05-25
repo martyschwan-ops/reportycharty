@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+
+# Server
+server/node_modules/
+server/dist/
+server/uploads/
+server/data/
+
+# Client
+client/node_modules/
+client/dist/
+
+# Misc
+*.log
+.vscode/
