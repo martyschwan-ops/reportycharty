@@ -1,16 +1,54 @@
-import Database from 'better-sqlite3';
+import { Database as SqliteDb } from 'node-sqlite3-wasm';
 import path from 'path';
 import fs from 'fs';
 
 const DATA_DIR = path.join(__dirname, '../../../data');
 const DB_PATH = path.join(DATA_DIR, 'reportycharty.db');
 
-let db: Database.Database;
+// Thin wrapper so routes can call .run(a, b, c) / .get(a) / .all() with
+// spread params, matching the better-sqlite3 API that node-sqlite3-wasm
+// replaced (node-sqlite3-wasm expects an array of bindings instead).
+function wrapStmt(rawDb: SqliteDb, sql: string) {
+  return {
+    run(...args: any[]) {
+      const stmt = rawDb.prepare(sql);
+      const result = stmt.run(args);
+      stmt.finalize();
+      return result;
+    },
+    get(...args: any[]) {
+      const stmt = rawDb.prepare(sql);
+      const result = stmt.get(args.length ? args : []);
+      stmt.finalize();
+      return result;
+    },
+    all(...args: any[]) {
+      const stmt = rawDb.prepare(sql);
+      const result = stmt.all(args.length ? args : []);
+      stmt.finalize();
+      return result;
+    },
+  };
+}
+
+class Db {
+  private _db: SqliteDb;
+
+  constructor(dbPath: string) {
+    this._db = new SqliteDb(dbPath);
+  }
+
+  exec(sql: string) { this._db.exec(sql); }
+  pragma(pragma: string) { this._db.exec(`PRAGMA ${pragma}`); }
+  prepare(sql: string) { return wrapStmt(this._db, sql); }
+}
+
+let db: Db;
 
 export function initDb(): void {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-  db = new Database(DB_PATH);
+  db = new Db(DB_PATH);
   db.pragma('journal_mode = WAL');
 
   db.exec(`
@@ -44,6 +82,6 @@ export function initDb(): void {
   `);
 }
 
-export function getDb(): Database.Database {
+export function getDb(): Db {
   return db;
 }
